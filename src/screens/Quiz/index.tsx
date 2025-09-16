@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Text, View } from "react-native";
+import * as Haptics from "expo-haptics";
 
 import { useNavigation, useRoute } from "@react-navigation/native";
 
@@ -28,6 +29,7 @@ import { ProgressBar } from "../../components/ProgressBar";
 import { THEME } from "../../styles/theme";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { OverlayFeedback } from "../../components/OverlayFeedback";
+import { Audio } from "expo-av";
 
 interface Params {
   id: string;
@@ -57,6 +59,17 @@ export function Quiz() {
 
   const route = useRoute();
   const { id } = route.params as Params;
+
+  async function playSound(isCorrect: boolean) {
+    const file = isCorrect
+      ? require("../../assets/correct.mp3")
+      : require("../../assets/wrong.mp3");
+
+    const { sound } = await Audio.Sound.createAsync(file, { shouldPlay: true });
+
+    await sound.setPositionAsync(0);
+    await sound.playAsync();
+  }
 
   function handleSkipConfirm() {
     Alert.alert("Pular", "Deseja realmente pular a questão?", [
@@ -96,11 +109,13 @@ export function Quiz() {
     if (quiz.questions[currentQuestion].correct === alternativeSelected) {
       setPoints((prevState) => prevState + 1);
 
+      await playSound(true);
       setStatusReply(1);
       handleNextQuestion();
     } else {
-      shakeAnimation();
+      await playSound(false);
       setStatusReply(2);
+      shakeAnimation();
     }
 
     setAlternativeSelected(null);
@@ -122,7 +137,9 @@ export function Quiz() {
     return true;
   }
 
-  function shakeAnimation() {
+  async function shakeAnimation() {
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+
     shake.value = withSequence(
       withSequence(
         withTiming(3, { duration: 400, easing: Easing.bounce }),
